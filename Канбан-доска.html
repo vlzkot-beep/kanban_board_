@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Канбан-доска</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--text);
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+            padding: 10px 15px;
+            border: 2px solid var(--input-border);
+            border-radius: 25px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--button-bg);
+        }
+
+        .add-task-form {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            transition: all 0.3s;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        input,
+        textarea {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--button-bg);
+        }
+
+        button {
+            padding: 10px 20px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: var(--secondary-bg, #2196F3);
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: var(--stat-bg);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .stat-item {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: var(--text);
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            background: var(--input-bg);
+            padding: 5px 12px;
+            border-radius: 20px;
+            min-width: 30px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .column {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .column h2 {
+            margin-bottom: 20px;
+            color: var(--text);
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tasks {
+            min-height: 100px;
+            transition: background 0.3s;
+        }
+
+        .tasks.drag-over {
+            background: var(--drag-over, rgba(76, 175, 80, 0.1));
+            border-radius: 8px;
+            border: 2px dashed var(--button-bg);
+        }
+
+        .task-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-left: 4px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: move;
+            position: relative;
+            transition: all 0.3s;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .task-card.high-priority {
+            border-left-color: #ff4444;
+        }
+
+        .task-card.medium-priority {
+            border-left-color: #ffbb33;
+        }
+
+        .task-card.low-priority {
+            border-left-color: #00C851;
+        }
+
+        .priority-badge {
+            position: absolute;
+            top: 8px;
+            right: 35px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .high-priority .priority-badge {
+            background: #ff4444;
+            color: white;
+        }
+
+        .medium-priority .priority-badge {
+            background: #ffbb33;
+            color: black;
+        }
+
+        .low-priority .priority-badge {
+            background: #00C851;
+            color: white;
+        }
+
+        .task-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .task-card h3 {
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 1.1rem;
+            word-break: break-word;
+        }
+
+        .task-card p {
+            color: var(--text);
+            opacity: 0.8;
+            font-size: 14px;
+            margin: 5px 0;
+            word-break: break-word;
+        }
+
+        .delete-btn,
+        .edit-btn {
+            position: absolute;
+            top: 5px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            opacity: 0.6;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .delete-btn {
+            right: 5px;
+        }
+
+        .edit-btn {
+            right: 35px;
+            font-size: 16px;
+        }
+
+        .delete-btn:hover {
+            color: #ff4440;
+            opacity: 1;
+            background: rgba(255, 68, 64, 0.1);
+        }
+
+        .edit-btn:hover {
+            color: var(--button-bg);
+            opacity: 1;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .duplicate-btn,
+        .archive-btn {
+            position: absolute;
+            top: 5px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            opacity: 0.6;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .duplicate-btn {
+            right: 65px;
+        }
+
+        .archive-btn {
+            right: 35px;
+        }
+
+        .dragging {
+            opacity: 0.4;
+            transform: rotate(3deg) scale(0.95);
+            z-index: 1000;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            color: var(--text);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 300px;
+            border-left: 4px solid var(--button-bg);
+        }
+
+        .toast.error {
+            border-left-color: #ff4444;
+        }
+
+        .toast.success {
+            border-left-color: #00C851;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            padding: 10px 15px;
+            background: var(--button-bg);
+            color: white;
+            z-index: 1000;
+            border-radius: 25px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 2px solid var(--input-border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: var(--button-bg);
+            color: white;
+            border-color: var(--button-bg);
+        }
+
+        .task-card-footer {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .card-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text);
+            opacity: 0.8;
+        }
+
+        .card-badge.overdue {
+            background: #ff4444;
+            color: white;
+            opacity: 1;
+        }
+
+        .card-badge.due-today {
+            background: #ffbb33;
+            color: black;
+            opacity: 1;
+        }
+
+        .export-menu {
+            position: fixed;
+            top: 60px;
+            right: 15px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            display: none;
+            z-index: 1001;
+            min-width: 150px;
+        }
+
+        .export-menu.active {
+            display: block;
+        }
+
+        .export-btn {
+            position: fixed;
+            top: 60px;
+            right: 15px;
+            padding: 10px 15px;
+            background: var(--button-bg);
+            color: white;
+            z-index: 1000;
+            border-radius: 25px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .export-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+            color: var(--text);
+            background: var(--input-bg);
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .export-option:hover {
+            background: var(--button-bg);
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            padding: 40px 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            border: none;
+            background: transparent;
+            width: 100%;
+            padding: 5px;
+            margin-right: 10px;
+        }
+
+        .modal-title:focus {
+            outline: 2px solid var(--button-bg);
+            border-radius: 4px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--text);
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+            background: var(--input-bg);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: var(--input-bg);
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checklist-item input[type="text"] {
+            flex: 1;
+            border: 1px solid var(--input-border);
+            padding: 6px;
+            border-radius: 4px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .checklist-item.completed input[type="text"] {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .label {
+            display: inline-block;
+            width: 40px;
+            height: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .labels-container {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .label-option {
+            width: 50px;
+            height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .label-option:hover {
+            border-color: var(--text);
+        }
+
+        .label-option.active::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .archived-tasks-section {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+            border: 2px dashed var(--card-border);
+            transition: all 0.3s;
+        }
+
+        .archived-task-card {
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-left: 4px solid #999;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            position: relative;
+            opacity: 0.7;
+            transition: all 0.3s;
+        }
+
+        .archived-task-card:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .archived-task-card h3 {
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            word-break: break-word;
+        }
+
+        .archived-task-card p {
+            color: var(--text);
+            opacity: 0.7;
+            font-size: 13px;
+            margin: 3px 0;
+            word-break: break-word;
+        }
+
+        .restore-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .restore-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .show-archived-btn {
+            background: var(--secondary-bg, #2196F3);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .show-archived-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        :root {
+            --bg: #f5f5f5;
+            --text: #333;
+            --card-bg: #fff;
+            --card-border: #eee;
+            --button-bg: #4CAF50;
+            --button-text: #fff;
+            --stat-bg: white;
+            --input-bg: #fff;
+            --input-border: #ddd;
+            --input-text: #333;
+            --select-bg: #fff;
+            --select-text: #333;
+            --drag-over: rgba(76, 175, 80, 0.1);
+        }
+
+        .dark-theme {
+            --bg: #1e1e1e;
+            --text: #f5f5f5;
+            --card-bg: #2e2e2e;
+            --card-border: #444;
+            --button-bg: #4CAF50;
+            --button-text: #fff;
+            --stat-bg: #2e2e2e;
+            --input-bg: #3e3e3e;
+            --input-border: #555;
+            --input-text: #f5f5f5;
+            --select-bg: #3e3e3e;
+            --select-text: #f5f5f5;
+            --drag-over: rgba(76, 175, 80, 0.2);
+        }
+
+        select {
+            background: var(--select-bg);
+            color: var(--select-text);
+            border: 2px solid var(--input-border);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--button-bg);
+        }
+    </style>
+</head>
+
+<body class="dark-theme">
+    <div class="container">
+        <button id="theme-toggle" class="theme-toggle">☀️ Светлый режим</button>
+        <button id="export-btn" class="export-btn">📊 Экспорт</button>
+        <div id="export-menu" class="export-menu">
+            <div class="export-option" onclick="exportToCSV()">📄 CSV формат</div>
+            <div class="export-option" onclick="exportToExcel()">📊 Excel формат</div>
+        </div>
+        <h1>Рабочий поток движения задач</h1>
+        <div class="header-controls">
+            <input type="text" id="search-box" class="search-box" placeholder="🔍 Поиск задач...">
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="setFilter('all', this)">Все</button>
+                <button class="filter-btn" onclick="setFilter('high', this)">Высокий</button>
+                <button class="filter-btn" onclick="setFilter('medium', this)">Средний</button>
+                <button class="filter-btn" onclick="setFilter('low', this)">Низкий</button>
+            </div>
+        </div>
+        <div class="stats-container">
+            <div class="stat-item"><span class="stat-label">Всего задач:</span><span id="total-tasks"
+                    class="stat-value">3</span></div>
+            <div class="stat-item"><span class="stat-label">В плане:</span><span id="plan-tasks"
+                    class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">В работе:</span><span id="progress-tasks"
+                    class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">Готово:</span><span id="done-tasks"
+                    class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">Срочных:</span><span id="high-priority-tasks"
+                    class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">Средних:</span><span id="medium-priority-tasks"
+                    class="stat-value">1</span></div>
+            <div class="stat-item"><span class="stat-label">Низких:</span><span id="low-priority-tasks"
+                    class="stat-value">1</span></div>
+            <button id="show-archived-btn" class="show-archived-btn" onclick="toggleArchivedSection()"
+                style="display:none;">📦 Показать архив (<span id="archived-count-btn">0</span>)</button>
+        </div>
+        <div class="add-task-form">
+            <div class="form-row">
+                <input type="text" id="title" placeholder="Заголовок задачи" required>
+                <button onclick="addTask()">➕ Добавить</button>
+            </div>
+            <div class="form-row">
+                <select id="priority-select">
+                    <option value="high">Высокий</option>
+                    <option value="medium" selected>Средний</option>
+                    <option value="low">Низкий</option>
+                </select>
+                <select id="executor-select">
+                    <option value="">Выберите исполнителя...</option>
+                    <option value="Иван Петров">Иван Петров</option>
+                    <option value="Мария Сидорова">Мария Сидорова</option>
+                    <option value="Алексей Иванов">Алексей Иванов</option>
+                    <option value="Елена Козлова">Елена Козлова</option>
+                    <option value="__add_new__">+ Добавить нового...</option>
+                </select>
+                <button type="button" id="manage-executors-btn"
+                    style="padding:10px 15px;background:var(--secondary-bg, #2196F3);color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;">👥
+                    Управление</button>
+            </div>
+            <div class="form-row">
+                <textarea id="description" placeholder="Описание задачи (необязательно)"></textarea>
+                <input type="date" id="due-date" placeholder="Срок выполнения">
+            </div>
+        </div>
+        <div class="board">
+            <div class="column">
+                <h2>📋 План</h2>
+                <div class="tasks" id="plan" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)"></div>
+            </div>
+            <div class="column">
+                <h2>📝 В работе</h2>
+                <div class="tasks" id="progress" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)"></div>
+            </div>
+            <div class="column">
+                <h2>✅ Готово</h2>
+                <div class="tasks" id="done" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)"></div>
+            </div>
+        </div>
+
+        <!-- Секция архивированных задач -->
+        <div id="archived-section" class="archived-tasks-section" style="display:none;">
+            <h2 style="margin-bottom:15px;color:var(--text);display:flex;align-items:center;gap:10px;">
+                📦 Архивированные задачи
+                <span id="archived-count" class="stat-value" style="font-size:14px;">0</span>
+                <button onclick="toggleArchivedSection()"
+                    style="margin-left:auto;padding:5px 10px;font-size:12px;">Скрыть</button>
+            </h2>
+            <div id="archived-tasks"
+                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px;"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно карточки задачи (как в Trello) -->
+    <div id="card-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <input type="text" id="modal-title" class="modal-title" placeholder="Название задачи">
+                <button class="modal-close" onclick="closeCardModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3>📝 Описание</h3>
+                    <textarea id="modal-description" placeholder="Добавьте более подробное описание..."
+                        style="width:100%;min-height:100px;padding:10px;border:2px solid var(--input-border);border-radius:8px;background:var(--input-bg);color:var(--input-text);resize:vertical;"></textarea>
+                </div>
+
+                <div class="modal-section">
+                    <h3>🏷️ Метки</h3>
+                    <div id="labels-container" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+                    <div id="task-labels-preview" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;"></div>
+                </div>
+
+                <div class="modal-section">
+                    <h3>📅 Срок выполнения</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="date" id="modal-due-date"
+                            style="padding:8px;border:2px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--input-text);">
+                        <button onclick="clearDueDate()" style="padding:8px 16px;">Очистить</button>
+                    </div>
+                    <div id="due-date-status"></div>
+                </div>
+
+                <div class="modal-section">
+                    <h3>👤 Исполнитель</h3>
+                    <input type="text" id="modal-executor" placeholder="Имя исполнителя"
+                        style="width:100%;padding:10px;border:2px solid var(--input-border);border-radius:8px;background:var(--input-bg);color:var(--input-text);">
+                </div>
+
+                <div class="modal-section">
+                    <h3>✅ Чек-лист <span id="checklist-progress-text"></span></h3>
+                    <div id="checklist-items"></div>
+                    <div style="display:flex;gap:8px;margin-top:10px;">
+                        <input type="text" id="new-checklist-item" placeholder="Добавить пункт чек-листа"
+                            style="flex:1;padding:8px;border:2px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--input-text);">
+                        <button onclick="addChecklistItem()">Добавить</button>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h3>⚙️ Действия</h3>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <select id="modal-priority"
+                            style="padding:8px;border:2px solid var(--input-border);border-radius:8px;background:var(--input-bg);color:var(--input-text);">
+                            <option value="high">Высокий приоритет</option>
+                            <option value="medium">Средний приоритет</option>
+                            <option value="low">Низкий приоритет</option>
+                        </select>
+                        <button onclick="duplicateCurrentCard()" class="secondary">📋 Дублировать</button>
+                        <button onclick="archiveCurrentCard()" style="background:#ff9800;">📦 Архивировать</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для управления исполнителями -->
+    <div id="executors-modal" class="modal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h2 style="color:var(--text);">👥 Управление исполнителями</h2>
+                <button class="modal-close" onclick="closeExecutorsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:var(--input-bg);padding:15px;border-radius:8px;margin-bottom:20px;">
+                    <h3 style="margin-bottom:10px;color:var(--text);font-size:16px;">Добавить исполнителя</h3>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <input type="text" id="new-executor-name" placeholder="Имя исполнителя"
+                            style="flex:1;padding:8px;border:1px solid var(--input-border);border-radius:6px;background:var(--card-bg);color:var(--text);">
+                        <button onclick="addExecutorFromModal()"
+                            style="padding:8px 15px;background:var(--button-bg);color:white;border:none;border-radius:6px;cursor:pointer;">➕
+                            Добавить</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom:15px;color:var(--text);font-size:16px;">Список исполнителей</h3>
+                    <div id="executors-list" style="max-height:300px;overflow-y:auto;"></div>
+                </div>
+                <div style="text-align:center;margin-top:20px;">
+                    <button onclick="closeExecutorsModal()"
+                        style="padding:10px 20px;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);border-radius:6px;cursor:pointer;">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let tasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [
+            { id: 1, title: 'Пример задачи', description: 'Это пример задачи в колонке "План"', status: 'plan', priority: 'medium', executor: '', labels: [], checklist: [], dueDate: null, archived: false },
+            { id: 2, title: 'Текущая задача', description: 'Эта задача уже в работе', status: 'progress', priority: 'high', executor: '', labels: [], checklist: [], dueDate: null, archived: false },
+            { id: 3, title: 'Завершенная задача', description: 'Эта задача уже выполнена', status: 'done', priority: 'low', executor: '', labels: [], checklist: [], dueDate: null, archived: false }
+        ];
+
+        let nextId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+        let currentFilter = 'all';
+        let searchQuery = '';
+        let viewingTaskId = null;
+
+        // Доступные цвета меток
+        const availableLabels = ['#61BD4F', '#F2D600', '#FF9F1A', '#EB5A46', '#C377E0', '#0079BF', '#00C2E0', '#51E898', '#FF78CB', '#344563'];
+
+        // Инициализация задач с недостающими полями
+        for (let t of tasks) {
+            if (!t.priority) t.priority = 'medium';
+            if (!t.executor) t.executor = '';
+            if (!t.labels) t.labels = [];
+            if (!t.checklist) t.checklist = [];
+            if (!t.hasOwnProperty('archived')) t.archived = false;
+        }
+
+        // Основные функции
+        function setFilter(filter, buttonElement) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            buttonElement.classList.add('active');
+            currentFilter = filter;
+            renderTasks();
+        }
+
+        function addTask() {
+            const title = document.getElementById('title');
+            const desc = document.getElementById('description');
+            const priority = document.getElementById('priority-select');
+            const executor = document.getElementById('executor-select');
+            const dueDate = document.getElementById('due-date');
+
+            if (!title || !title.value.trim()) {
+                showToast('Введите заголовок задачи!', 'error');
+                return;
+            }
+
+            const newTask = {
+                id: nextId++,
+                title: title.value.trim(),
+                description: desc ? desc.value.trim() : '',
+                status: 'plan',
+                priority: priority ? priority.value : 'medium',
+                executor: executor && executor.value !== '__add_new__' ? executor.value : '',
+                labels: [],
+                checklist: [],
+                dueDate: dueDate && dueDate.value ? dueDate.value : null,
+                archived: false
+            };
+
+            tasks.push(newTask);
+            saveTasks();
+            renderTasks();
+
+            // Очищаем форму
+            if (title) title.value = '';
+            if (desc) desc.value = '';
+            if (priority) priority.value = 'medium';
+            if (executor) executor.value = '';
+            if (dueDate) dueDate.value = '';
+
+            showToast('Задача добавлена!', 'success');
+        }
+
+        function saveTasks() {
+            localStorage.setItem('kanbanTasks', JSON.stringify(tasks));
+            renderArchived();
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function renderTasks() {
+            const cols = {
+                plan: document.getElementById('plan'),
+                progress: document.getElementById('progress'),
+                done: document.getElementById('done')
+            };
+
+            Object.values(cols).forEach(col => col.innerHTML = '');
+
+            let filteredTasks = tasks.filter(t => !t.archived);
+
+            if (currentFilter !== 'all') {
+                filteredTasks = filteredTasks.filter(t => t.priority === currentFilter);
+            }
+
+            if (searchQuery) {
+                filteredTasks = filteredTasks.filter(t =>
+                    t.title.toLowerCase().includes(searchQuery) ||
+                    (t.description && t.description.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            filteredTasks.forEach(task => {
+                const taskEl = document.createElement('div');
+                taskEl.className = `task-card ${task.priority}-priority`;
+                taskEl.draggable = true;
+                taskEl.id = `task-${task.id}`;
+                taskEl.innerHTML = `
+            <button class="delete-btn" onclick="deleteTask(${task.id}, event)">×</button>
+            <button class="duplicate-btn" onclick="duplicateTask(${task.id}, event)">📋</button>
+            <button class="archive-btn" onclick="archiveTask(${task.id}, event)">📦</button>
+            <button class="edit-btn" onclick="editTask(${task.id}, event)">✏️</button>
+            <div class="priority-badge">${task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий'}</div>
+            <h3>${task.title}</h3>
+            ${task.description ? `<p>${task.description}</p>` : ''}
+            ${task.executor ? `<p>👤 ${task.executor}</p>` : ''}
+            ${task.dueDate ? `<p>📅 ${new Date(task.dueDate).toLocaleDateString('ru-RU')}</p>` : ''}
+        `;
+
+                // Добавляем метки
+                if (task.labels && task.labels.length > 0) {
+                    const labelsContainer = document.createElement('div');
+                    labelsContainer.className = 'labels-container';
+                    task.labels.forEach(label => {
+                        const labelEl = document.createElement('span');
+                        labelEl.className = 'label';
+                        labelEl.style.backgroundColor = label;
+                        labelsContainer.appendChild(labelEl);
+                    });
+                    taskEl.appendChild(labelsContainer);
+                }
+
+                // Добавляем футер с дополнительной информацией
+                const footer = document.createElement('div');
+                footer.className = 'task-card-footer';
+
+                if (task.checklist && task.checklist.length > 0) {
+                    const completed = task.checklist.filter(item => item.completed).length;
+                    const badge = document.createElement('span');
+                    badge.className = 'card-badge';
+                    badge.textContent = `✅ ${completed}/${task.checklist.length}`;
+                    footer.appendChild(badge);
+                }
+
+                if (footer.children.length > 0) {
+                    taskEl.appendChild(footer);
+                }
+
+                taskEl.addEventListener('dragstart', drag);
+                taskEl.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+
+                taskEl.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('delete-btn') &&
+                        !e.target.classList.contains('edit-btn') &&
+                        !e.target.classList.contains('duplicate-btn') &&
+                        !e.target.classList.contains('archive-btn')) {
+                        viewCardTask(task.id);
+                    }
+                });
+
+                const targetColumn = cols[task.status];
+                if (targetColumn) {
+                    targetColumn.appendChild(taskEl);
+                }
+            });
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const activeTasks = tasks.filter(t => !t.archived);
+            document.getElementById('total-tasks').textContent = activeTasks.length;
+            document.getElementById('plan-tasks').textContent = activeTasks.filter(t => t.status === 'plan').length;
+            document.getElementById('progress-tasks').textContent = activeTasks.filter(t => t.status === 'progress').length;
+            document.getElementById('done-tasks').textContent = activeTasks.filter(t => t.status === 'done').length;
+            document.getElementById('high-priority-tasks').textContent = activeTasks.filter(t => t.priority === 'high').length;
+            document.getElementById('medium-priority-tasks').textContent = activeTasks.filter(t => t.priority === 'medium').length;
+            document.getElementById('low-priority-tasks').textContent = activeTasks.filter(t => t.priority === 'low').length;
+        }
+
+        // Drag & Drop функции
+        function drag(e) {
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            if (e.target.classList.contains('tasks')) {
+                e.target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('tasks')) {
+                e.target.classList.remove('drag-over');
+            }
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const tasksEl = e.target.closest('.tasks');
+            if (!tasksEl) return;
+
+            tasksEl.classList.remove('drag-over');
+            const taskId = e.dataTransfer.getData('text/plain');
+            const taskEl = document.getElementById(taskId);
+            if (!taskEl) return;
+
+            const newStatus = tasksEl.id;
+            taskEl.classList.remove('dragging');
+
+            const taskIdNum = parseInt(taskId.replace('task-', ''));
+            const task = tasks.find(t => t.id === taskIdNum);
+
+            if (task && task.status !== newStatus) {
+                task.status = newStatus;
+                saveTasks();
+                renderTasks();
+                showToast(`Задача перемещена в "${getStatusName(newStatus)}"`, 'success');
+            }
+        }
+
+        function getStatusName(status) {
+            const names = { plan: 'План', progress: 'В работе', done: 'Готово' };
+            return names[status] || status;
+        }
+
+        // Функции управления задачами
+        function deleteTask(id, event) {
+            event.stopPropagation();
+            if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                renderTasks();
+                showToast('Задача удалена', 'success');
+            }
+        }
+
+        function duplicateTask(id, event) {
+            event.stopPropagation();
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                const duplicated = {
+                    id: nextId++,
+                    title: task.title + ' (копия)',
+                    description: task.description,
+                    status: task.status,
+                    priority: task.priority,
+                    executor: task.executor,
+                    labels: [...(task.labels || [])],
+                    checklist: task.checklist ? task.checklist.map(item => ({ text: item.text, completed: false })) : [],
+                    dueDate: task.dueDate,
+                    archived: false
+                };
+                tasks.push(duplicated);
+                saveTasks();
+                renderTasks();
+                showToast('Задача дублирована', 'success');
+            }
+        }
+
+        function archiveTask(id, event) {
+            event.stopPropagation();
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.archived = true;
+                saveTasks();
+                renderTasks();
+                renderArchived();
+                showToast('Задача архивирована', 'success');
+            }
+        }
+
+        function editTask(id, event) {
+            event.stopPropagation();
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                const newTitle = prompt('Введите новый заголовок:', task.title);
+                if (newTitle && newTitle.trim()) {
+                    task.title = newTitle.trim();
+                    const newDesc = prompt('Введите новое описание:', task.description || '');
+                    task.description = newDesc ? newDesc.trim() : '';
+                    saveTasks();
+                    renderTasks();
+                    showToast('Задача обновлена', 'success');
+                }
+            }
+        }
+
+        // Функции для детального модального окна карточки задачи
+        function viewCardTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            viewingTaskId = id;
+            document.getElementById('modal-title').value = task.title;
+            document.getElementById('modal-description').value = task.description || '';
+            document.getElementById('modal-executor').value = task.executor || '';
+            document.getElementById('modal-priority').value = task.priority;
+            document.getElementById('modal-due-date').value = task.dueDate || '';
+
+            updateDueDateStatus();
+            renderChecklist();
+            renderLabels();
+
+            document.getElementById('card-modal').classList.add('active');
+        }
+
+        function closeCardModal() {
+            saveCurrentCard();
+            viewingTaskId = null;
+            document.getElementById('card-modal').classList.remove('active');
+        }
+
+        function saveCurrentCard() {
+            if (!viewingTaskId) return;
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task) return;
+
+            task.title = document.getElementById('modal-title').value.trim();
+            task.description = document.getElementById('modal-description').value.trim();
+            task.executor = document.getElementById('modal-executor').value.trim();
+            task.priority = document.getElementById('modal-priority').value;
+            task.dueDate = document.getElementById('modal-due-date').value || null;
+
+            saveTasks();
+            renderTasks();
+        }
+
+        function renderLabels() {
+            const container = document.getElementById('labels-container');
+            container.innerHTML = '';
+
+            availableLabels.forEach(color => {
+                const label = document.createElement('div');
+                label.className = 'label-option';
+                label.style.backgroundColor = color;
+
+                const task = tasks.find(t => t.id === viewingTaskId);
+                if (task && task.labels && task.labels.includes(color)) {
+                    label.classList.add('active');
+                }
+
+                label.onclick = () => toggleLabel(color);
+                container.appendChild(label);
+            });
+
+            const preview = document.getElementById('task-labels-preview');
+            preview.innerHTML = '';
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (task && task.labels && task.labels.length > 0) {
+                task.labels.forEach(color => {
+                    const label = document.createElement('span');
+                    label.className = 'label';
+                    label.style.backgroundColor = color;
+                    preview.appendChild(label);
+                });
+            }
+        }
+
+        function toggleLabel(color) {
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task) return;
+
+            if (!task.labels) task.labels = [];
+
+            const index = task.labels.indexOf(color);
+            if (index > -1) {
+                task.labels.splice(index, 1);
+            } else {
+                task.labels.push(color);
+            }
+
+            saveTasks();
+            renderLabels();
+            renderTasks();
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-items');
+            container.innerHTML = '';
+
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task) return;
+            if (!task.checklist) task.checklist = [];
+
+            task.checklist.forEach((item, index) => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'checklist-item';
+                if (item.completed) itemEl.classList.add('completed');
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = item.completed;
+                checkbox.onchange = () => toggleChecklistItem(index);
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = item.text;
+                input.onblur = () => updateChecklistItem(index, input.value);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '×';
+                deleteBtn.style.cssText = 'background:none;border:none;color:var(--text);cursor:pointer;opacity:0.6;';
+                deleteBtn.onclick = () => deleteChecklistItem(index);
+
+                itemEl.appendChild(checkbox);
+                itemEl.appendChild(input);
+                itemEl.appendChild(deleteBtn);
+                container.appendChild(itemEl);
+            });
+
+            updateChecklistProgress();
+        }
+
+        function addChecklistItem() {
+            const input = document.getElementById('new-checklist-item');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task) return;
+            if (!task.checklist) task.checklist = [];
+
+            task.checklist.push({ text, completed: false });
+            saveTasks();
+            renderChecklist();
+            renderTasks();
+            input.value = '';
+        }
+
+        function toggleChecklistItem(index) {
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task || !task.checklist) return;
+
+            task.checklist[index].completed = !task.checklist[index].completed;
+            saveTasks();
+            renderChecklist();
+            renderTasks();
+        }
+
+        function updateChecklistItem(index, text) {
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task || !task.checklist) return;
+
+            task.checklist[index].text = text;
+            saveTasks();
+            renderChecklist();
+        }
+
+        function deleteChecklistItem(index) {
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task || !task.checklist) return;
+
+            task.checklist.splice(index, 1);
+            saveTasks();
+            renderChecklist();
+            renderTasks();
+        }
+
+        function updateChecklistProgress() {
+            const task = tasks.find(t => t.id === viewingTaskId);
+            if (!task || !task.checklist) return;
+
+            const completed = task.checklist.filter(item => item.completed).length;
+            const total = task.checklist.length;
+            const progressText = document.getElementById('checklist-progress-text');
+            if (progressText) {
+                progressText.textContent = total > 0 ? `(${completed}/${total})` : '';
+            }
+        }
+
+        function clearDueDate() {
+            document.getElementById('modal-due-date').value = '';
+            saveCurrentCard();
+            updateDueDateStatus();
+        }
+
+        function updateDueDateStatus() {
+            const dueDateInput = document.getElementById('modal-due-date');
+            const statusDiv = document.getElementById('due-date-status');
+
+            if (!dueDateInput || !statusDiv) return;
+
+            const dueDate = dueDateInput.value;
+            if (!dueDate) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+
+            const today = new Date();
+            const due = new Date(dueDate);
+            const diffTime = due - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let statusText = '';
+            let statusClass = '';
+
+            if (diffDays < 0) {
+                statusText = `Просрочено на ${Math.abs(diffDays)} дн.`;
+                statusClass = 'overdue';
+            } else if (diffDays === 0) {
+                statusText = 'Срок сегодня';
+                statusClass = 'due-today';
+            } else if (diffDays <= 3) {
+                statusText = `Осталось ${diffDays} дн.`;
+                statusClass = 'due-soon';
+            } else {
+                statusText = `Срок через ${diffDays} дн.`;
+            }
+
+            statusDiv.innerHTML = `<span class="card-badge ${statusClass}">${statusText}</span>`;
+        }
+
+        function duplicateCurrentCard() {
+            if (!viewingTaskId) return;
+            duplicateTask(viewingTaskId, { stopPropagation: () => { } });
+            closeCardModal();
+        }
+
+        function archiveCurrentCard() {
+            if (!viewingTaskId) return;
+            archiveTask(viewingTaskId, { stopPropagation: () => { } });
+            closeCardModal();
+        }
+
+        // Функции для управления исполнителями
+        function openExecutorsModal() {
+            document.getElementById('executors-modal').classList.add('active');
+            renderExecutorsList();
+        }
+
+        function closeExecutorsModal() {
+            document.getElementById('executors-modal').classList.remove('active');
+        }
+
+        function addExecutorFromModal() {
+            const nameInput = document.getElementById('new-executor-name');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                showToast('Введите имя исполнителя!', 'error');
+                return;
+            }
+
+            // Добавляем в select
+            const executorSelect = document.getElementById('executor-select');
+            const newOption = document.createElement('option');
+            newOption.value = name;
+            newOption.textContent = name;
+
+            // Вставляем перед последним элементом (+ Добавить нового...)
+            const lastOption = executorSelect.lastElementChild;
+            executorSelect.insertBefore(newOption, lastOption);
+
+            nameInput.value = '';
+            renderExecutorsList();
+            showToast('Исполнитель добавлен!', 'success');
+        }
+
+        function renderExecutorsList() {
+            const container = document.getElementById('executors-list');
+            if (!container) return;
+
+            const executorSelect = document.getElementById('executor-select');
+            const options = Array.from(executorSelect.options).filter(opt => opt.value && opt.value !== '__add_new__');
+
+            container.innerHTML = '';
+
+            options.forEach(option => {
+                const executorDiv = document.createElement('div');
+                executorDiv.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--input-bg);border-radius:6px;margin-bottom:8px;';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = option.textContent;
+                nameSpan.style.color = 'var(--text)';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '×';
+                deleteBtn.style.cssText = 'background:none;border:none;color:#ff4444;cursor:pointer;font-size:18px;padding:5px;';
+                deleteBtn.onclick = () => removeExecutor(option.value);
+
+                executorDiv.appendChild(nameSpan);
+                executorDiv.appendChild(deleteBtn);
+                container.appendChild(executorDiv);
+            });
+        }
+
+        function removeExecutor(name) {
+            if (confirm(`Удалить исполнителя "${name}"?`)) {
+                const executorSelect = document.getElementById('executor-select');
+                const option = Array.from(executorSelect.options).find(opt => opt.value === name);
+                if (option) {
+                    option.remove();
+                    renderExecutorsList();
+                    showToast('Исполнитель удален!', 'success');
+                }
+            }
+        }
+
+        // Функции экспорта
+        function exportToCSV() {
+            const csvContent = generateCSV();
+            downloadFile(csvContent, 'kanban-tasks.csv', 'text/csv');
+            document.getElementById('export-menu').classList.remove('active');
+            showToast('CSV файл загружен!', 'success');
+        }
+
+        function exportToExcel() {
+            const htmlContent = generateExcelHTML();
+            downloadFile(htmlContent, 'kanban-tasks.xls', 'application/vnd.ms-excel');
+            document.getElementById('export-menu').classList.remove('active');
+            showToast('Excel файл загружен!', 'success');
+        }
+
+        function generateCSV() {
+            const headers = ['ID', 'Название', 'Описание', 'Статус', 'Приоритет', 'Исполнитель', 'Срок выполнения'];
+            const rows = [headers.join(',')];
+
+            tasks.filter(t => !t.archived).forEach(task => {
+                const row = [
+                    task.id,
+                    `"${task.title.replace(/"/g, '""')}"`,
+                    `"${(task.description || '').replace(/"/g, '""')}"`,
+                    getStatusName(task.status),
+                    task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий',
+                    `"${(task.executor || '').replace(/"/g, '""')}"`,
+                    task.dueDate || ''
+                ];
+                rows.push(row.join(','));
+            });
+
+            return rows.join('\n');
+        }
+
+        function generateExcelHTML() {
+            const activeTasks = tasks.filter(t => !t.archived);
+
+            let html = `
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h2>Отчет по задачам Канбан-доски</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Описание</th>
+                    <th>Статус</th>
+                    <th>Приоритет</th>
+                    <th>Исполнитель</th>
+                    <th>Срок выполнения</th>
+                </tr>`;
+
+            activeTasks.forEach(task => {
+                html += `
+                <tr>
+                    <td>${task.id}</td>
+                    <td>${task.title}</td>
+                    <td>${task.description || ''}</td>
+                    <td>${getStatusName(task.status)}</td>
+                    <td>${task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий'}</td>
+                    <td>${task.executor || ''}</td>
+                    <td>${task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : ''}</td>
+                </tr>`;
+            });
+
+            html += `
+            </table>
+        </body>
+        </html>`;
+
+            return html;
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Функции для работы с архивом
+        function renderArchived() {
+            console.log('renderArchived called');
+            const archivedTasks = tasks.filter(t => t.archived);
+            console.log('Archived tasks:', archivedTasks);
+
+            const archivedContainer = document.getElementById('archived-tasks');
+            const archivedSection = document.getElementById('archived-section');
+            const showArchivedBtn = document.getElementById('show-archived-btn');
+            const archivedCount = document.getElementById('archived-count');
+            const archivedCountBtn = document.getElementById('archived-count-btn');
+
+            console.log('Elements found:', {
+                archivedContainer: !!archivedContainer,
+                archivedSection: !!archivedSection,
+                showArchivedBtn: !!showArchivedBtn,
+                archivedCount: !!archivedCount,
+                archivedCountBtn: !!archivedCountBtn
+            });
+
+            if (archivedTasks.length === 0) {
+                if (archivedSection) archivedSection.style.display = 'none';
+                if (showArchivedBtn) showArchivedBtn.style.display = 'none';
+                return;
+            }
+
+            if (showArchivedBtn) showArchivedBtn.style.display = 'block';
+            if (archivedCount) archivedCount.textContent = archivedTasks.length;
+            if (archivedCountBtn) archivedCountBtn.textContent = archivedTasks.length;
+
+            if (archivedContainer) {
+                archivedContainer.innerHTML = '';
+
+                archivedTasks.forEach(task => {
+                    const taskEl = document.createElement('div');
+                    taskEl.className = 'archived-task-card';
+                    taskEl.innerHTML = `
+                <button class="restore-btn" onclick="restoreTask(${task.id})">↩️ Восстановить</button>
+                <h3>${task.title}</h3>
+                ${task.description ? `<p>${task.description}</p>` : ''}
+                ${task.executor ? `<p>👤 ${task.executor}</p>` : ''}
+                <p style="font-size:12px;opacity:0.6;">Статус: ${getStatusName(task.status)} | Приоритет: ${task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий'}</p>
+            `;
+                    archivedContainer.appendChild(taskEl);
+                });
+            }
+        }
+
+        function toggleArchivedSection() {
+            const archivedSection = document.getElementById('archived-section');
+            const showArchivedBtn = document.getElementById('show-archived-btn');
+
+            if (archivedSection.style.display === 'none') {
+                archivedSection.style.display = 'block';
+                showArchivedBtn.textContent = `📦 Скрыть архив (${document.getElementById('archived-count-btn').textContent})`;
+            } else {
+                archivedSection.style.display = 'none';
+                showArchivedBtn.textContent = `📦 Показать архив (${document.getElementById('archived-count-btn').textContent})`;
+            }
+        }
+
+        function restoreTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.archived = false;
+                saveTasks();
+                renderTasks();
+                renderArchived();
+                showToast('Задача восстановлена из архива!', 'success');
+            }
+        }
+
+        // Инициализация и обработчики событий
+        document.addEventListener('DOMContentLoaded', function () {
+            renderTasks();
+            renderArchived();
+
+            // Поиск
+            const searchBox = document.getElementById('search-box');
+            if (searchBox) {
+                searchBox.addEventListener('input', (e) => {
+                    searchQuery = e.target.value.toLowerCase();
+                    renderTasks();
+                });
+            }
+
+            // Переключение темы
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('dark-theme');
+                    const isDark = document.body.classList.contains('dark-theme');
+                    themeToggle.textContent = isDark ? '☀️ Светлый режим' : '🌓 Темный режим';
+                });
+            }
+
+            // Экспорт меню
+            const exportBtn = document.getElementById('export-btn');
+            const exportMenu = document.getElementById('export-menu');
+            if (exportBtn && exportMenu) {
+                exportBtn.addEventListener('click', () => {
+                    exportMenu.classList.toggle('active');
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!exportBtn.contains(e.target) && !exportMenu.contains(e.target)) {
+                        exportMenu.classList.remove('active');
+                    }
+                });
+            }
+
+            // Управление исполнителями
+            const manageExecutorsBtn = document.getElementById('manage-executors-btn');
+            if (manageExecutorsBtn) {
+                manageExecutorsBtn.addEventListener('click', openExecutorsModal);
+            }
+
+            // Закрытие модальных окон по клику вне их
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal')) {
+                    e.target.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

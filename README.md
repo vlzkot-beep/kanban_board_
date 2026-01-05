@@ -97,7 +97,7 @@ npx http-server
 
 ```
 Kanban-Board/
-├── Kanban-doska-rabochaia.html    # Основное приложение (все в одном файле)
+├── Канбан-доска.html    # Основное приложение (все в одном файле)
 ├── INSTRUKTsIIa_Kanban_doska.md   # Подробная инструкция
 ├── README.md                       # Этот файл
 └── docs/
